@@ -9,6 +9,9 @@ import { dateFormat } from '../../utils/dateformat'
 const TableOrder = () => {
     const token = useEcomStore((state) => state.token)
     const [orders, setOrders] = useState([])
+    const [loading, setLoading] = useState(false)
+    const [changingStatus, setChangingStatus] = useState(null)
+    const [selectedOrder, setSelectedOrder] = useState(null)
 
     useEffect(() => {
         if (token) {
@@ -17,115 +20,519 @@ const TableOrder = () => {
     }, [token])
 
     const handleGetOrder = (token) => {
+        setLoading(true)
+
         getOrderAdmin(token)
             .then((res) => {
                 console.log(res.data)
-                setOrders(res.data)
+
+                if (Array.isArray(res.data)) {
+                    setOrders(res.data)
+                } else {
+                    setOrders([])
+                }
             })
             .catch((err) => {
                 console.log(err)
+
+                const errMsg =
+                    err.response?.data?.message ||
+                    'ไม่สามารถโหลดข้อมูล Order ได้'
+
+                toast.error(errMsg)
+            })
+            .finally(() => {
+                setLoading(false)
             })
     }
 
     const handleChangeOrderStatus = (token, orderId, orderStatus) => {
-        //code
         console.log(orderId, orderStatus)
+
+        setChangingStatus(orderId)
+
         changeOrderStatus(token, orderId, orderStatus)
             .then((res) => {
                 console.log(res)
+
                 toast.success('Update Status Success!!!')
+
                 handleGetOrder(token)
-                // setOrders(res.data)
             })
             .catch((err) => {
                 console.log(err)
+
+                const errMsg =
+                    err.response?.data?.message ||
+                    'ไม่สามารถเปลี่ยนสถานะ Order ได้'
+
+                toast.error(errMsg)
+            })
+            .finally(() => {
+                setChangingStatus(null)
             })
     }
 
     const getStatusColer = (status) => {
         switch (status) {
             case "Not Process":
-                return 'bg-gray-300';
-            case "Processing":
-                return 'bg-blue-300';
-            case "Completed":
-                return 'bg-green-300';
-            case "Cancelled":
-                return 'bg-red-300';
+                return 'bg-gray-200 text-gray-700'
 
+            case "Processing":
+                return 'bg-blue-100 text-blue-700'
+
+            case "Completed":
+                return 'bg-green-100 text-green-700'
+
+            case "Cancelled":
+                return 'bg-red-100 text-red-700'
+
+            default:
+                return 'bg-gray-100 text-gray-600'
         }
     }
 
+    const handleViewDetail = (order) => {
+        setSelectedOrder(order)
+    }
 
-
-
+    const handleCloseDetail = () => {
+        setSelectedOrder(null)
+    }
 
     return (
-        <div className='container mx-auto p-4 bg-white shadow-md'>
-            <table className='w-full'>
-                <thead>
-                    <tr className='bg-gray-200 border '>
-                        <th>ลำดับ</th>
-                        <th>ชื่อผู้ใช้งาน</th>
-                        <th>วันที่</th>
-                        <th>สินค้า</th>
-                        <th>รวม</th>
-                        <th>สถานะ</th>
-                        <th>จัดการ</th>
-                    </tr>
-                </thead>
+        <>
+            <div className='container mx-auto p-4'>
 
-                <tbody>
-                    {orders?.map((item, index) => (
-                        <tr key={index} className='border '>
-                            <td className='text-center'>{index + 1}</td>
+                <div className='bg-white rounded-xl shadow-md overflow-hidden'>
 
-                            <td>
-                                <p>{item.orderedBy?.email}</p>
-                                <p>{item.orderedBy?.address}</p>
-                            </td>
+                    <div className='px-6 py-5 border-b bg-gray-50'>
+                        <h2 className='text-xl font-bold text-gray-800'>
+                            รายการคำสั่งซื้อ
+                        </h2>
 
-                            <td>
-                                {dateFormat(item.createdAt)}
-                            </td>
+                        <p className='text-sm text-gray-500 mt-1'>
+                            จัดการและตรวจสอบสถานะคำสั่งซื้อของลูกค้า
+                        </p>
+                    </div>
 
-                            <td className='px-2 py-4'>
-                                {item.products?.map((product, index) => (
-                                    <>
-                                        <li key={index}>
-                                            {product.product?.title} {" "}
-                                            <span className='text-sm'>{product.count} x {numberFormat(product.product.price)}</span>
-                                        </li>
-                                    </>
-                                ))}
-                            </td>
+                    {loading ? (
 
-                            <td>{numberFormat(item.cartTotal)}</td>
+                        <div className='text-center py-10'>
+                            <div className='inline-block w-8 h-8 border-4 border-gray-300 border-t-blue-500 rounded-full animate-spin'></div>
 
-                            <td>
-                                <span className={`${getStatusColer(item.orderStatus)} px-2 py-1 rounded-full`}>
-                                    {item.orderStatus}
+                            <p className='mt-3 text-gray-500'>
+                                กำลังโหลดข้อมูล...
+                            </p>
+                        </div>
+
+                    ) : orders.length === 0 ? (
+
+                        <div className='text-center py-10 text-gray-500'>
+                            <p className='text-lg'>
+                                ยังไม่มีรายการคำสั่งซื้อ
+                            </p>
+                        </div>
+
+                    ) : (
+
+                        <div className='overflow-x-auto'>
+
+                            <table className='w-full text-sm'>
+
+                                <thead>
+                                    <tr className='bg-gray-100 border-b text-gray-700'>
+
+                                        <th className='px-4 py-4 text-center whitespace-nowrap'>
+                                            ลำดับ
+                                        </th>
+
+                                        <th className='px-4 py-4 text-left whitespace-nowrap'>
+                                            ชื่อผู้ใช้งาน
+                                        </th>
+
+                                        <th className='px-4 py-4 text-center whitespace-nowrap'>
+                                            วันที่
+                                        </th>
+
+                                        <th className='px-4 py-4 text-left'>
+                                            สินค้า
+                                        </th>
+
+                                        <th className='px-4 py-4 text-right whitespace-nowrap'>
+                                            รวม
+                                        </th>
+
+                                        <th className='px-4 py-4 text-center whitespace-nowrap'>
+                                            สถานะ
+                                        </th>
+
+                                        <th className='px-4 py-4 text-center whitespace-nowrap'>
+                                            จัดการ
+                                        </th>
+
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+
+                                    {orders.map((item, index) => (
+
+                                        <tr
+                                            key={item.id || index}
+                                            className='border-b hover:bg-gray-50 transition'
+                                        >
+
+                                            <td className='px-4 py-5 text-center'>
+                                                <span className='font-medium text-gray-700'>
+                                                    {index + 1}
+                                                </span>
+                                            </td>
+
+                                            <td className='px-4 py-5'>
+
+                                                <p className='font-medium text-gray-800'>
+                                                    {item.orderedBy?.email ||
+                                                        'ไม่มี Email'}
+                                                </p>
+
+                                                <p className='text-xs text-gray-500 mt-1 max-w-[220px]'>
+                                                    {item.orderedBy?.address ||
+                                                        'ไม่มีที่อยู่'}
+                                                </p>
+
+                                            </td>
+
+                                            <td className='px-4 py-5 text-center whitespace-nowrap text-gray-600'>
+                                                {item.createdAt
+                                                    ? dateFormat(item.createdAt)
+                                                    : '-'}
+                                            </td>
+
+                                            <td className='px-4 py-5'>
+
+                                                {item.products?.length > 0 ? (
+
+                                                    <ul className='space-y-2'>
+
+                                                        {item.products.map(
+                                                            (product, productIndex) => (
+
+                                                                <li
+                                                                    key={
+                                                                        product.id ||
+                                                                        productIndex
+                                                                    }
+                                                                    className='text-gray-700'
+                                                                >
+
+                                                                    <span className='font-medium'>
+                                                                        {product.product?.title ||
+                                                                            'สินค้าไม่พบ'}
+                                                                    </span>
+
+                                                                    <span className='text-xs text-gray-500 ml-2'>
+                                                                        {product.count || 0}
+                                                                        {' x '}
+                                                                        {numberFormat(
+                                                                            product.product?.price || 0
+                                                                        )}
+                                                                    </span>
+
+                                                                </li>
+
+                                                            )
+                                                        )}
+
+                                                    </ul>
+
+                                                ) : (
+
+                                                    <span className='text-gray-400'>
+                                                        ไม่มีสินค้า
+                                                    </span>
+
+                                                )}
+
+                                            </td>
+
+                                            <td className='px-4 py-5 text-right font-semibold text-gray-800 whitespace-nowrap'>
+                                                {numberFormat(
+                                                    item.cartTotal || 0
+                                                )}
+                                            </td>
+
+                                            <td className='px-4 py-5 text-center'>
+
+                                                <span
+                                                    className={`${getStatusColer(
+                                                        item.orderStatus
+                                                    )} inline-block px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap`}
+                                                >
+                                                    {item.orderStatus ||
+                                                        'Not Process'}
+                                                </span>
+
+                                            </td>
+
+                                            <td className='px-4 py-5'>
+
+                                                <div className='flex flex-col gap-2 items-center'>
+
+                                                    <button
+                                                        type='button'
+                                                        onClick={() =>
+                                                            handleViewDetail(item)
+                                                        }
+                                                        className='w-full min-w-[120px] px-3 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition text-xs font-medium'
+                                                    >
+                                                        ดูรายละเอียด
+                                                    </button>
+
+                                                    <select
+                                                        value={
+                                                            item.orderStatus ||
+                                                            'Not Process'
+                                                        }
+                                                        disabled={
+                                                            changingStatus ===
+                                                            item.id
+                                                        }
+                                                        onChange={(e) =>
+                                                            handleChangeOrderStatus(
+                                                                token,
+                                                                item.id,
+                                                                e.target.value
+                                                            )
+                                                        }
+                                                        className='w-full min-w-[120px] border border-gray-300 rounded-lg px-2 py-2 bg-white text-sm outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-100'
+                                                    >
+
+                                                        <option value='Not Process'>
+                                                            Not Process
+                                                        </option>
+
+                                                        <option value='Processing'>
+                                                            Processing
+                                                        </option>
+
+                                                        <option value='Completed'>
+                                                            Completed
+                                                        </option>
+
+                                                        <option value='Cancelled'>
+                                                            Cancelled
+                                                        </option>
+
+                                                    </select>
+
+                                                    {changingStatus ===
+                                                        item.id && (
+                                                            <span className='text-xs text-blue-500'>
+                                                                กำลังอัปเดต...
+                                                            </span>
+                                                        )}
+
+                                                </div>
+
+                                            </td>
+
+                                        </tr>
+
+                                    ))}
+
+                                </tbody>
+
+                            </table>
+
+                        </div>
+                    )}
+
+                </div>
+
+            </div>
+
+            {selectedOrder && (
+
+                <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4'>
+
+                    <div className='bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto'>
+
+                        <div className='flex items-center justify-between px-6 py-4 border-b'>
+
+                            <div>
+                                <h3 className='text-lg font-bold text-gray-800'>
+                                    รายละเอียดคำสั่งซื้อ
+                                </h3>
+
+                                <p className='text-xs text-gray-500 mt-1'>
+                                    Order ID: {selectedOrder.id || '-'}
+                                </p>
+                            </div>
+
+                            <button
+                                type='button'
+                                onClick={handleCloseDetail}
+                                className='text-gray-500 hover:text-red-500 text-2xl'
+                            >
+                                ×
+                            </button>
+
+                        </div>
+
+                        <div className='p-6 space-y-5'>
+
+                            <div className='bg-gray-50 rounded-lg p-4'>
+
+                                <h4 className='font-semibold text-gray-800 mb-2'>
+                                    ข้อมูลผู้สั่งซื้อ
+                                </h4>
+
+                                <p className='text-sm text-gray-600'>
+                                    Email:{' '}
+                                    {selectedOrder.orderedBy?.email ||
+                                        '-'}
+                                </p>
+
+                                <p className='text-sm text-gray-600 mt-1'>
+                                    ที่อยู่:{' '}
+                                    {selectedOrder.orderedBy?.address ||
+                                        '-'}
+                                </p>
+
+                            </div>
+
+                            <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+
+                                <div className='border rounded-lg p-4'>
+
+                                    <p className='text-xs text-gray-500'>
+                                        วันที่สั่งซื้อ
+                                    </p>
+
+                                    <p className='font-medium mt-1'>
+                                        {selectedOrder.createdAt
+                                            ? dateFormat(
+                                                selectedOrder.createdAt
+                                            )
+                                            : '-'}
+                                    </p>
+
+                                </div>
+
+                                <div className='border rounded-lg p-4'>
+
+                                    <p className='text-xs text-gray-500'>
+                                        สถานะ
+                                    </p>
+
+                                    <span
+                                        className={`${getStatusColer(
+                                            selectedOrder.orderStatus
+                                        )} inline-block mt-1 px-3 py-1 rounded-full text-xs font-semibold`}
+                                    >
+                                        {selectedOrder.orderStatus ||
+                                            'Not Process'}
+                                    </span>
+
+                                </div>
+
+                            </div>
+
+                            <div>
+
+                                <h4 className='font-semibold text-gray-800 mb-3'>
+                                    รายการสินค้า
+                                </h4>
+
+                                <div className='border rounded-lg overflow-hidden'>
+
+                                    {selectedOrder.products?.length > 0 ? (
+
+                                        selectedOrder.products.map(
+                                            (product, index) => (
+
+                                                <div
+                                                    key={
+                                                        product.id || index
+                                                    }
+                                                    className='flex items-center justify-between px-4 py-3 border-b last:border-b-0'
+                                                >
+
+                                                    <div>
+
+                                                        <p className='font-medium text-gray-800'>
+                                                            {product.product?.title ||
+                                                                'สินค้าไม่พบ'}
+                                                        </p>
+
+                                                        <p className='text-xs text-gray-500 mt-1'>
+                                                            จำนวน:{' '}
+                                                            {product.count ||
+                                                                0}
+                                                        </p>
+
+                                                    </div>
+
+                                                    <p className='font-medium text-gray-700'>
+                                                        {numberFormat(
+                                                            product.product
+                                                                ?.price || 0
+                                                        )}
+                                                    </p>
+
+                                                </div>
+
+                                            )
+                                        )
+
+                                    ) : (
+
+                                        <div className='p-4 text-center text-gray-500'>
+                                            ไม่มีรายการสินค้า
+                                        </div>
+
+                                    )}
+
+                                </div>
+
+                            </div>
+
+                            <div className='flex justify-between items-center bg-gray-100 rounded-lg px-4 py-4'>
+
+                                <span className='font-semibold text-gray-700'>
+                                    ยอดรวมทั้งหมด
                                 </span>
-                            </td>
 
-                            <td>
-                                <select
-                                    value={item.orderStatus}
-                                    onChange={(e) =>
-                                        handleChangeOrderStatus(token, item.id, e.target.value)}
-                                >
-                                    <option >Not Process</option>
-                                    <option >Processing</option>
-                                    <option >Completed</option>
-                                    <option >Cancelled</option>
-                                </select>
-                            </td>
+                                <span className='text-xl font-bold text-gray-800'>
+                                    {numberFormat(
+                                        selectedOrder.cartTotal || 0
+                                    )}
+                                </span>
 
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
+                            </div>
+
+                        </div>
+
+                        <div className='px-6 py-4 border-t flex justify-end'>
+
+                            <button
+                                type='button'
+                                onClick={handleCloseDetail}
+                                className='px-5 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition'
+                            >
+                                ปิด
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            )}
+
+        </>
     )
 }
 
