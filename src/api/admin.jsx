@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 // http://localhost:5001/api/admin/orders
-export const getOrderAdmin = async (token) => {
+export const getOrdersAdmin = async (token) => {
     //code
     return axios.get('http://localhost:5001/api/admin/orders', {
         headers: {
