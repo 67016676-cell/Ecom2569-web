@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { getOrderAdmin, changeOrderStatus } from '../../api/admin'
+import { getOrdersAdmin, changeOrderStatus } from '../../api/admin'
 import useEcomStore from '../../store/ecom-store'
 import { toast } from 'react-toastify'
 import { numberFormat } from '../../utils/number'
@@ -22,7 +22,7 @@ useEffect(() => {
 const handleGetOrder = (token) => {
     setLoading(true)
 
-    getOrderAdmin(token)
+    getOrdersAdmin(token)
         .then((res) => {
             console.log(res.data)
 
